@@ -2,7 +2,8 @@
 
 这是一个演示如何将 **工业组态 SDK** 集成到不同前端环境的案例库。通过这些案例，你可以快速了解如何使用企业凭证（Client ID / Secret Key）进行鉴权并渲染组态看板。
 
-🔗 **相关链接**：[SDK 官方仓库 (Gitee)](https://gitee.com/samkoon-sdk/samkoon-monitor-sdk)
+🔗 **相关链接**：
+[GitHub](https://github.com/samkoon-tech/Samkoon-Monitor-SDK) · [Gitee](https://gitee.com/samkoon-sdk/samkoon-monitor-sdk) · [English README](./README.en.md)
 
 ---
 
