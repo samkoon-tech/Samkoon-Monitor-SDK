@@ -60,38 +60,51 @@ jobs:
         run: |
           $Workspace  = "${{ github.workspace }}"
           $InstallDir = "$Workspace\dist\windows"
+          $QtBinDir   = "$env:QT_ROOT_DIR\bin"
           New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-          # 使用绝对路径，确保 windeployqt 子进程也能正确定位 DLL
-          $ExePath    = "$Workspace\${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
+          $ExePath = "$Workspace\${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
           Copy-Item $ExePath $InstallDir -Force
 
-          $WinDeployQt = "$env:QT_ROOT_DIR\bin\windeployqt.exe"
-          & $WinDeployQt `
+          # 1. windeployqt 部署 Qt DLL 和插件
+          & "$QtBinDir\windeployqt.exe" `
             --release `
             --no-translations `
             --no-system-d3d-compiler `
             "$InstallDir\${{ env.APP_NAME }}.exe"
-
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          # 内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
+          # 2. 显式复制 QtWebEngineProcess.exe（windeployqt 有时路径不对）
+          Copy-Item "$QtBinDir\QtWebEngineProcess.exe" $InstallDir -Force
+          Write-Host "Copied QtWebEngineProcess.exe from $QtBinDir"
+
+          # 3. 创建 qt.conf，覆盖 baked-in 的 CI 路径，强制所有 Qt 组件查找当前目录
+          @"
+[Paths]
+Prefix         = .
+LibraryExecutables = .
+Data           = .
+Plugins        = plugins
+Translations   = translations
+"@ | Set-Content "$InstallDir\qt.conf" -Encoding UTF8
+          Write-Host "Created qt.conf"
+
+          # 4. 内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
           $CRTPath = Join-Path $env:VCToolsRedistDir "x64"
           $CRTDir  = Get-ChildItem $CRTPath -Filter "Microsoft.VC*.CRT" | Select-Object -Last 1
           if ($CRTDir) {
             Get-ChildItem "$($CRTDir.FullName)\*.dll" | Copy-Item -Destination $InstallDir -Force
             Write-Host "Copied MSVC runtime from $($CRTDir.FullName)"
           } else {
-            Write-Warning "MSVC CRT dir not found, trying fallback..."
-            Copy-Item "$env:VCINSTALLDIR\Redist\MSVC\*\x64\*.CRT\*.dll" $InstallDir -Force -ErrorAction SilentlyContinue
+            Write-Warning "MSVC CRT dir not found"
           }
 
-          # 验证 WebEngine 必需文件齐全
+          # 5. 验证关键文件
           Write-Host "`n=== 部署文件列表 ==="
           Get-ChildItem $InstallDir -File | Sort-Object Name | Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,0)}} | Format-Table -AutoSize
-          $required = @("Qt5Core.dll","Qt5WebEngineCore.dll","QtWebEngineProcess.exe")
+          $required = @("Qt5Core.dll","Qt5WebEngineCore.dll","QtWebEngineProcess.exe","qt.conf")
           $missing  = $required | Where-Object { -not (Test-Path "$InstallDir\$_") }
-          if ($missing) { Write-Error "Missing: $($missing -join ', ')"; exit 1 }
+          if ($missing) { Write-Error "MISSING: $($missing -join ', ')"; exit 1 }
           Write-Host "✓ 所有关键文件已就绪"
 
       - name: 压缩产物
