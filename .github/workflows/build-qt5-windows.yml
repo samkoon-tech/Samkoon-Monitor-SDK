@@ -79,14 +79,15 @@ jobs:
           Write-Host "Copied QtWebEngineProcess.exe from $QtBinDir"
 
           # 3. 创建 qt.conf，覆盖 baked-in 的 CI 路径，强制所有 Qt 组件查找当前目录
-          @"
-[Paths]
-Prefix         = .
-LibraryExecutables = .
-Data           = .
-Plugins        = plugins
-Translations   = translations
-"@ | Set-Content "$InstallDir\qt.conf" -Encoding UTF8
+          $qtconf = @(
+            "[Paths]",
+            "Prefix         = .",
+            "LibraryExecutables = .",
+            "Data           = .",
+            "Plugins        = plugins",
+            "Translations   = translations"
+          )
+          $qtconf | Set-Content "$InstallDir\qt.conf" -Encoding UTF8
           Write-Host "Created qt.conf"
 
           # 4. 内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
