@@ -60,7 +60,7 @@ jobs:
           $ExePath = "${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
           Copy-Item $ExePath $InstallDir -Force
 
-          $WinDeployQt = "$env:Qt5_DIR\..\..\..\bin\windeployqt.exe"
+          $WinDeployQt = "$env:QT_ROOT_DIR\bin\windeployqt.exe"
           & $WinDeployQt `
             --release `
             --no-translations `
