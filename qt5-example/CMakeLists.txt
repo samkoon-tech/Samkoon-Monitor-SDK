@@ -25,6 +25,12 @@ set_target_properties(SamkoonMonitorQt5 PROPERTIES
     MACOSX_BUNDLE TRUE
 )
 
+# CI 注入版本号，显示在窗口标题，便于确认实际运行的构建版本
+set(APP_VERSION "" CACHE STRING "Version string shown in window title")
+if(APP_VERSION)
+    target_compile_definitions(SamkoonMonitorQt5 PRIVATE APP_VERSION="${APP_VERSION}")
+endif()
+
 # 本地调试模式：cmake -DUSE_LOCAL_SDK=ON .. && cmake --build .
 option(USE_LOCAL_SDK "Load SDK from local server (http://localhost:8888)" OFF)
 if(USE_LOCAL_SDK)

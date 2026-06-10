@@ -54,7 +54,11 @@ static const QString SDK_EMBED_URL =
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+#ifdef APP_VERSION
+    setWindowTitle(QString("Samkoon Monitor SDK - Qt5 Integration Demo (%1)").arg(APP_VERSION));
+#else
     setWindowTitle("Samkoon Monitor SDK - Qt5 Integration Demo");
+#endif
     resize(1280, 800);
     setMinimumSize(800, 600);
 

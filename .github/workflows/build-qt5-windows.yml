@@ -51,7 +51,8 @@ jobs:
           cmake -S . -B build-windows-release `
             -G "Ninja" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_PREFIX_PATH="$env:Qt5_DIR"
+            -DCMAKE_PREFIX_PATH="$env:Qt5_DIR" `
+            -DAPP_VERSION="${{ github.ref_name }}"
 
       - name: 编译
         run: cmake --build ${{ env.BUILD_DIR }} --config Release --parallel
@@ -100,7 +101,14 @@ jobs:
             Write-Warning "MSVC CRT dir not found"
           }
 
-          # 5. 验证关键文件
+          # 5. 写入版本标识，便于确认包版本
+          @(
+            "version: ${{ github.ref_name }}",
+            "commit:  ${{ github.sha }}",
+            "built:   $(Get-Date -Format o)"
+          ) | Set-Content "$InstallDir\version.txt" -Encoding ascii
+
+          # 6. 验证关键文件
           Write-Host "`n=== 部署文件列表 ==="
           Get-ChildItem $InstallDir -File | Sort-Object Name | Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,0)}} | Format-Table -AutoSize
           $required = @("Qt5Core.dll","Qt5WebEngineCore.dll","QtWebEngineProcess.exe","qt.conf")
