@@ -3,6 +3,8 @@ name: Qt5 Windows Build
 on:
   push:
     branches: [main, master]
+    tags:
+      - 'v*'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
