@@ -56,7 +56,7 @@ jobs:
       - name: 编译
         run: cmake --build ${{ env.BUILD_DIR }} --config Release --parallel
 
-      - name: 打包依赖（windeployqt）
+      - name: 打包依赖（windeployqt + MSVC 运行时）
         run: |
           $InstallDir = "dist\windows"
           New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
@@ -71,6 +71,17 @@ jobs:
             --no-system-d3d-compiler `
             --no-opengl-sw `
             "$InstallDir\${{ env.APP_NAME }}.exe"
+
+          # 直接内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
+          $CRTPath = Join-Path $env:VCToolsRedistDir "x64"
+          $CRTDir = Get-ChildItem $CRTPath -Filter "Microsoft.VC*.CRT" | Select-Object -Last 1
+          if ($CRTDir) {
+            Get-ChildItem "$($CRTDir.FullName)\*.dll" | Copy-Item -Destination $InstallDir -Force
+            Write-Host "Copied MSVC runtime DLLs from $($CRTDir.FullName)"
+          } else {
+            Write-Warning "MSVC CRT dir not found, trying fallback..."
+            Copy-Item "$env:VCINSTALLDIR\Redist\MSVC\*\x64\*.CRT\*.dll" $InstallDir -Force -ErrorAction SilentlyContinue
+          }
 
       - name: 压缩产物
         run: |
