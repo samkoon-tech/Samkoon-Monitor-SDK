@@ -58,10 +58,12 @@ jobs:
 
       - name: 打包依赖（windeployqt + MSVC 运行时）
         run: |
-          $InstallDir = "dist\windows"
+          $Workspace  = "${{ github.workspace }}"
+          $InstallDir = "$Workspace\dist\windows"
           New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
-          $ExePath = "${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
+          # 使用绝对路径，确保 windeployqt 子进程也能正确定位 DLL
+          $ExePath    = "$Workspace\${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
           Copy-Item $ExePath $InstallDir -Force
 
           $WinDeployQt = "$env:QT_ROOT_DIR\bin\windeployqt.exe"
@@ -69,19 +71,28 @@ jobs:
             --release `
             --no-translations `
             --no-system-d3d-compiler `
-            --no-opengl-sw `
             "$InstallDir\${{ env.APP_NAME }}.exe"
 
-          # 直接内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          # 内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
           $CRTPath = Join-Path $env:VCToolsRedistDir "x64"
-          $CRTDir = Get-ChildItem $CRTPath -Filter "Microsoft.VC*.CRT" | Select-Object -Last 1
+          $CRTDir  = Get-ChildItem $CRTPath -Filter "Microsoft.VC*.CRT" | Select-Object -Last 1
           if ($CRTDir) {
             Get-ChildItem "$($CRTDir.FullName)\*.dll" | Copy-Item -Destination $InstallDir -Force
-            Write-Host "Copied MSVC runtime DLLs from $($CRTDir.FullName)"
+            Write-Host "Copied MSVC runtime from $($CRTDir.FullName)"
           } else {
             Write-Warning "MSVC CRT dir not found, trying fallback..."
             Copy-Item "$env:VCINSTALLDIR\Redist\MSVC\*\x64\*.CRT\*.dll" $InstallDir -Force -ErrorAction SilentlyContinue
           }
+
+          # 验证 WebEngine 必需文件齐全
+          Write-Host "`n=== 部署文件列表 ==="
+          Get-ChildItem $InstallDir -File | Sort-Object Name | Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,0)}} | Format-Table -AutoSize
+          $required = @("Qt5Core.dll","Qt5WebEngineCore.dll","QtWebEngineProcess.exe")
+          $missing  = $required | Where-Object { -not (Test-Path "$InstallDir\$_") }
+          if ($missing) { Write-Error "Missing: $($missing -join ', ')"; exit 1 }
+          Write-Host "✓ 所有关键文件已就绪"
 
       - name: 压缩产物
         run: |
