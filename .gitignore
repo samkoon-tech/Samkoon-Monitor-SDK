@@ -1,0 +1,17 @@
+# 允许 GitHub Actions 工作流（monorepo 根目录 .gitignore 屏蔽了 .github）
+!.github
+!.github/**
+
+node_modules
+dist
+build
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode
+.idea
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
