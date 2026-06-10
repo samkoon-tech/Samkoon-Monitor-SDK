@@ -54,6 +54,10 @@ make
 
 **Requirements**: Qt 5.15+ with the `qtwebengine` module. On macOS: `brew install qt@5`.
 
+> ⚠️ **Windows note**: Extract the package to a local drive (e.g. `C:\`) before running.
+> Launching from a network share (such as a VM shared folder like `\\Mac\Home\...`) causes
+> `QtWebEngineProcess.exe` to fail loading DLLs from the UNC path, reporting "Qt5Core.dll not found".
+
 Windows builds are automatically produced by the [GitHub Actions CI](./.github/workflows/build-qt5-windows.yml) on every push to `main`.
 
 ---

@@ -54,6 +54,10 @@ make
 
 **依赖**：Qt 5.15+ 并安装 `qtwebengine` 模块。macOS 可通过 `brew install qt@5` 安装。
 
+> ⚠️ **Windows 运行须知**：请将程序解压到本地磁盘（如 `C:\`）后运行。
+> 若从网络共享路径（如虚拟机共享文件夹 `\\Mac\Home\...`）直接运行，
+> `QtWebEngineProcess.exe` 子进程会因 UNC 路径无法加载 DLL 而报"找不到 Qt5Core.dll"。
+
 ---
 
 ## ⚙️ 关键配置说明
