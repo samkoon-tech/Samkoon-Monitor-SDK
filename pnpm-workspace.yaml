@@ -1,0 +1,6 @@
+# 这是一个空的 pnpm-workspace.yaml，用于切断与主 Monorepo 的关联
+# 确保 playground 下的案例作为独立的外部项目运行
+packages:
+  - 'html-example'
+  - 'react-example'
+  - 'vue-example'

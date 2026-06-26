@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Samkoon Monitor SDK - HTML Integration Demo</title>
+    
+    <script src="./navbar-toggle.js"></script>
+
+    <!-- Samkoon Monitor SDK: 生产/CDN 从远端加载，本地验证通过 VITE_SDK_URL 覆盖 -->
+    <script>
+      (function () {
+        var u = '%VITE_SDK_URL%';
+        if (!u || u.charAt(0) === '%') u = '//xdata.samkoonyun.com/sdk/sk-monitor/latest/monitor-sdk.mjs';
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = u;
+        document.head.appendChild(s);
+      })();
+    </script>
+
+    <style>  
+        :root { 
+            --primary-color: #2563eb; 
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-secondary: #64748b;
+        }
+        
+        body { 
+            margin: 0; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #0f172a;
+            color: var(--text-main);
+        }
+
+        #demo-wrapper { 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            background-image: url('bk.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        .navbar.collapsed {
+            transform: translateY(-100%);
+        }
+
+        #btn-navbar-toggle {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            border-radius: 4px;
+            line-height: 1;
+            transition: background 0.15s;
+        }
+        #btn-navbar-toggle:hover { background: rgba(0,0,0,0.06); }
+
+        /* 折叠后右上角悬浮的还原 tab */
+        #navbar-restore {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 16px;
+            z-index: 200;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(226,232,240,0.5);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            transition: background 0.15s;
+        }
+        #navbar-restore:hover { background: rgba(255,255,255,0.95); }
+
+        .logo {
+            font-weight: 700;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .main-container { 
+            flex: 1; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        
+        .login-card { 
+            background: rgba(255, 255, 255, 0.9); 
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 420px; 
+            padding: 32px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .tabs { 
+            display: flex; 
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 24px; 
+        }
+
+        .tab-btn { 
+            flex: 1; 
+            padding: 8px; 
+            background: none; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 500; 
+            color: var(--text-secondary); 
+            border-radius: 6px;
+            transition: all 0.2s; 
+        }
+
+        .tab-btn.active { 
+            background: white;
+            color: var(--primary-color); 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .form-item { margin-bottom: 16px; }
+        .form-item label { 
+            display: block; 
+            margin-bottom: 6px; 
+            font-weight: 600; 
+            color: var(--text-main); 
+            font-size: 0.875rem; 
+        }
+
+        .form-item input { 
+            width: 100%; 
+            padding: 10px 12px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            box-sizing: border-box; 
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-item input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            ring: 2px solid rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-init { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--primary-color); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            font-weight: 600;
+            margin-top: 8px; 
+            transition: background 0.2s;
+        }
+
+        .btn-init:hover {
+            background: var(--primary-hover);
+        }
+
+        #btn-back {
+            padding: 6px 12px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        #sdk-viewport {
+            position: fixed;
+            inset: 0;
+            display: none;
+            background: #000;
+            z-index: 50; /* navbar z-index:100 始终在其上方 */
+        }
+
+        .active #sdk-viewport { display: block; }
+        .active .login-card { display: none; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="demo-wrapper">
+    <nav class="navbar" id="navbar">
+        <div class="logo">Samkoon Monitor SDK Integration (HTML)</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button id="btn-back" style="display:none;" onclick="reset()">Back</button>
+            <button id="btn-navbar-toggle" title="折叠导航栏" onclick="collapseNavbar()">▲</button>
+        </div>
+    </nav>
+    <button id="navbar-restore" onclick="expandNavbar()" title="展开导航栏">▼ 导航</button>
+
+    <div class="main-container" id="content-node">
+        <div class="login-card">
+            <!-- 企业账号模式 -->
+            <div id="enterprise-form">
+                <div class="form-item">
+                    <label>Client ID</label>
+                    <input type="text" id="clientId" value="%VITE_SDK_CLIENT_ID%">
+                </div>
+                <div class="form-item">
+                    <label>Secret Key</label>
+                    <input type="password" id="secretKey" value="%VITE_SDK_SECRET_KEY%">
+                </div>
+            </div>
+
+            <div class="form-item">
+                <label>Instance ID (View ID)</label>
+                <input type="text" id="instanceId" value="%VITE_SDK_INSTANCE_ID%">
+            </div>
+            
+            <button class="btn-init" onclick="initSDK()">Initialize & Login</button>
+        </div>
+
+        <div id="sdk-viewport"></div>
+    </div>
+</div>
+
+<script>
+    function initSDK() {
+        // 切换 UI 状态
+        document.getElementById('content-node').classList.add('active');
+        document.getElementById('btn-back').style.display = 'block';
+
+        const viewport = document.getElementById('sdk-viewport');
+        const instanceId = document.getElementById('instanceId').value;
+        const clientId = document.getElementById('clientId').value;
+        const secretKey = document.getElementById('secretKey').value;
+        const mode = 'release';
+        
+        viewport.innerHTML = `
+            <samkoon-monitor-sdk 
+                style="display: block; width: 100%; height: 100%;"
+                instance-id="${instanceId}"
+                mode="${mode}"
+                client-id="${clientId}" 
+                secret-key="${secretKey}"
+                >
+            </samkoon-monitor-sdk>
+        `;
+    }
+
+    function reset() {
+        document.getElementById('content-node').classList.remove('active');
+        document.getElementById('btn-back').style.display = 'none';
+        document.getElementById('sdk-viewport').innerHTML = '';
+        expandNavbar();
+    }
+</script>
+
+</body>
+</html>

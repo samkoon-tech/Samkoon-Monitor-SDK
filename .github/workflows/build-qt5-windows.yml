@@ -1,0 +1,138 @@
+name: Qt5 Windows Build
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  QT_VERSION: '5.15.2'
+  APP_NAME: SamkoonMonitorQt5
+  BUILD_DIR: qt5-example/build-windows-release
+
+jobs:
+  build-windows:
+    name: 构建 Qt5 Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Qt5
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          modules: qtwebengine
+          cache: true
+          cache-key-prefix: qt5-windows-msvc2019
+
+      - name: 配置 MSVC 环境
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: 安装 Ninja
+        run: choco install ninja -y
+
+      - name: CMake 配置
+        run: |
+          cd qt5-example
+          if (Test-Path build-windows-release) { Remove-Item -Recurse -Force build-windows-release }
+          cmake -S . -B build-windows-release `
+            -G "Ninja" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:Qt5_DIR" `
+            -DAPP_VERSION="${{ github.ref_name }}"
+
+      - name: 编译
+        run: cmake --build ${{ env.BUILD_DIR }} --config Release --parallel
+
+      - name: 打包依赖（windeployqt + MSVC 运行时）
+        run: |
+          $Workspace  = "${{ github.workspace }}"
+          $InstallDir = "$Workspace\dist\windows"
+          $QtBinDir   = "$env:QT_ROOT_DIR\bin"
+          New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+
+          $ExePath = "$Workspace\${{ env.BUILD_DIR }}\${{ env.APP_NAME }}.exe"
+          Copy-Item $ExePath $InstallDir -Force
+
+          # 1. windeployqt 部署 Qt DLL 和插件
+          & "$QtBinDir\windeployqt.exe" `
+            --release `
+            --no-translations `
+            --no-system-d3d-compiler `
+            "$InstallDir\${{ env.APP_NAME }}.exe"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          # 2. 显式复制 QtWebEngineProcess.exe（windeployqt 有时路径不对）
+          Copy-Item "$QtBinDir\QtWebEngineProcess.exe" $InstallDir -Force
+          Write-Host "Copied QtWebEngineProcess.exe from $QtBinDir"
+
+          # 3. 创建 qt.conf，覆盖 baked-in 的 CI 路径，强制所有 Qt 组件查找当前目录
+          $qtconf = @(
+            "[Paths]",
+            "Prefix         = .",
+            "LibraryExecutables = .",
+            "Data           = .",
+            "Plugins        = plugins",
+            "Translations   = translations"
+          )
+          $qtconf | Set-Content "$InstallDir\qt.conf" -Encoding UTF8
+          Write-Host "Created qt.conf"
+
+          # 4. 内嵌 MSVC 运行时 DLL，无需用户安装 VC++ Redistributable
+          $CRTPath = Join-Path $env:VCToolsRedistDir "x64"
+          $CRTDir  = Get-ChildItem $CRTPath -Filter "Microsoft.VC*.CRT" | Select-Object -Last 1
+          if ($CRTDir) {
+            Get-ChildItem "$($CRTDir.FullName)\*.dll" | Copy-Item -Destination $InstallDir -Force
+            Write-Host "Copied MSVC runtime from $($CRTDir.FullName)"
+          } else {
+            Write-Warning "MSVC CRT dir not found"
+          }
+
+          # 5. 写入版本标识，便于确认包版本
+          @(
+            "version: ${{ github.ref_name }}",
+            "commit:  ${{ github.sha }}",
+            "built:   $(Get-Date -Format o)"
+          ) | Set-Content "$InstallDir\version.txt" -Encoding ascii
+
+          # 6. 验证关键文件
+          Write-Host "`n=== 部署文件列表 ==="
+          Get-ChildItem $InstallDir -File | Sort-Object Name | Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,0)}} | Format-Table -AutoSize
+          $required = @("Qt5Core.dll","Qt5WebEngineCore.dll","QtWebEngineProcess.exe","qt.conf")
+          $missing  = $required | Where-Object { -not (Test-Path "$InstallDir\$_") }
+          if ($missing) { Write-Error "MISSING: $($missing -join ', ')"; exit 1 }
+          Write-Host "✓ 所有关键文件已就绪"
+
+      - name: 压缩产物
+        run: |
+          $ZipPath = "dist\${{ env.APP_NAME }}-windows-x64.zip"
+          Compress-Archive -Path "dist\windows" -DestinationPath $ZipPath -Force
+          Write-Host "Artifact: $ZipPath"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-windows-x64
+          path: dist/${{ env.APP_NAME }}-windows-x64.zip
+          retention-days: 30
+
+      - name: 发布 Release（仅 tag 触发）
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ env.APP_NAME }}-windows-x64.zip
+          generate_release_notes: true
